@@ -1,0 +1,56 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Movie Box N.K</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;background:#0d0d12;color:#eee;font-family:sans-serif}
+header{position:sticky;top:0;background:#16161d;padding:10px;display:flex;gap:8px;z-index:5}
+input{flex:1;padding:10px;border-radius:8px;border:0;background:#262633;color:#fff}
+button{padding:10px 14px;border:0;border-radius:8px;background:#e50914;color:#fff}
+.tabs{display:flex;gap:6px;padding:8px 10px;overflow-x:auto}
+.tabs button{background:#262633;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px}
+.card{background:#16161d;border-radius:8px;overflow:hidden}
+.card img{width:100%;aspect-ratio:2/3;object-fit:cover;background:#222}
+.card p{margin:6px;font-size:13px}
+video{width:100%;background:#000;max-height:60vh}
+#player{display:none;padding-bottom:20px}
+#player h3{padding:0 10px}
+#player .d{padding:0 10px;font-size:13px;color:#aaa}
+</style></head><body>
+<div style="padding:10px 12px 0;font-size:20px;font-weight:bold;color:#e50914;background:#16161d">Movie Box N.K</div>
+<header><input id="q" placeholder="Search movies..."><button onclick="go()">Search</button></header>
+<div id="list">
+<div class="tabs" id="tabs"></div><div class="grid" id="grid"></div></div>
+<div id="player"><button style="margin:10px" onclick="goBack()">Back</button>
+<video id="v" controls playsinline></video><h3 id="t"></h3><div class="d" id="d"></div></div>
+<script>
+const $=id=>document.getElementById(id);
+const cats=[["Popular","collection:feature_films"],["Classics","collection:feature_films AND date:[1920-01-01 TO 1960-12-31]"],["Sci-Fi","collection:feature_films AND subject:(science fiction)"],["Comedy","collection:feature_films AND subject:comedy"],["Horror","collection:feature_films AND subject:horror"],["Cartoons","collection:animationandcartoons"]];
+cats.forEach(c=>{let b=document.createElement('button');b.textContent=c[0];b.onclick=()=>load(c[1]);$('tabs').appendChild(b)});
+async function load(q){
+ $('grid').innerHTML='Loading...';
+ const u='https://archive.org/advancedsearch.php?q='+encodeURIComponent('mediatype:movies AND ('+q+')')+'&fl[]=identifier&fl[]=title&sort[]=downloads+desc&rows=40&output=json';
+ try{const r=await (await fetch(u)).json();
+ $('grid').innerHTML='';
+ r.response.docs.forEach(m=>{const c=document.createElement('div');c.className='card';
+  c.innerHTML='<img loading="lazy" src="https://archive.org/services/img/'+m.identifier+'"><p></p>';
+  c.querySelector('p').textContent=m.title;c.onclick=()=>play(m.identifier,m.title);$('grid').appendChild(c)});
+ if(!r.response.docs.length)$('grid').textContent='Nothing found.';
+ }catch(e){$('grid').textContent='Network error.'}
+}
+function go(){const t=$('q').value.trim();if(t)load('title:('+t.replace(/[()":]/g,' ')+')')}
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+async function play(id,title){
+ try{const m=await (await fetch('https://archive.org/metadata/'+id)).json();
+ const f=(m.files||[]).filter(x=>/\.mp4$/i.test(x.name)).sort((a,b)=>(b.size|0)-(a.size|0));
+ if(!f.length){alert('No MP4 for this title');return}
+ const pick=f.find(x=>(x.size|0)<1.5e9)||f[f.length-1];
+ $('list').style.display='none';$('player').style.display='block';
+ $('v').src='https://archive.org/download/'+id+'/'+encodeURIComponent(pick.name).replace(/%2F/g,'/');
+ $('t').textContent=title;
+ $('d').textContent=((m.metadata&&m.metadata.description)||'').toString().replace(/<[^>]+>/g,'').slice(0,500);
+ $('v').play();window.scrollTo(0,0);
+ }catch(e){alert('Could not load this title')}
+}
+window.goBack=function(){if($('player').style.display==='block'){$('v').pause();$('v').removeAttribute('src');$('player').style.display='none';$('list').style.display='block';return true}return false};
+load(cats[0][1]);
+</script></body></html>
